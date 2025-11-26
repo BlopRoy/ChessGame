@@ -1,0 +1,12 @@
+# 1. Create a build folder
+mkdir build
+cd build
+
+# 2. Generate build system
+cmake ..
+
+# 3. Compile
+cmake --build .
+
+# 4. Run
+cmake --build . --target run
