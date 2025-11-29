@@ -6,412 +6,550 @@
 
 #define INVALID -1
 
-int tempLock[2] = {0, 0};
+
+int tempLock[2] = {0, 0}; // (x,y)
 
 typedef struct {
     int x;
     int y;
-    int occupied;   // 1 if a piece is on the square, 0 if empty
-    int valid;      // 1 if the move is allowed, 0 if not
+    int occupied;
+    int valid;
 } Coordinate;
 
 Coordinate tempValidMove[52];
+
+char possibleMove[8][8] = {
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '},
+    {' ',' ',' ',' ',' ',' ',' ',' '}
+};
 
 void error(void) {
     printf("error");
 }
 
+void resetPossibleMove(void) {
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 8; x++) {
+            possibleMove[y][x] = ' ';
+        }
+    }
+}
+
+void markPossibleMoves(void) {
+    resetPossibleMove();
+
+    for (int i = 0; i < 52; i++) {
+        if (tempValidMove[i].x != INVALID && tempValidMove[i].y != INVALID) {
+
+            int x = tempValidMove[i].x;
+            int y = tempValidMove[i].y;
+
+            if (tempValidMove[i].valid) {
+                if (tempValidMove[i].occupied)
+                    possibleMove[y][x] = '%'; // capture
+                else
+                    possibleMove[y][x] = '*'; // move
+            }
+        }
+    }
+}
+
+/*
+    Vérifie la présence d’une pièce pour les Noirs
+    Renvoie :
+        0 = vide
+        1 = allié
+        2 = ennemi
+*/
+int isSomoneHereBlack(int x,int y) {
+    if (board[y][x] != ' ') {
+        if (islower(board[y][x])) {
+            return 1;
+        }
+        return 2;
+    }
+    return 0;
+}
+
+/*
+    Vérifie présence pour les Blancs
+*/
+int isSomoneHereWhite(int x,int y) {
+    if (board[y][x] != ' ') {
+        if (isupper(board[y][x])) {
+            return 1;
+        }
+        return 2;
+    }
+    return 0;
+}
+
+/* color=0 noir, 1 blanc */
+int isSomoneHere(int x,int y,int color) {
+    if (color == 0) {
+        return isSomoneHereBlack(x,y);
+    }
+    return isSomoneHereWhite(x,y);
+}
+
+int nobody(int x,int y,int color) {
+    if (board[y][x] != ' ') {
+        return isSomoneHere(x,y,color);
+    }
+    return 0;
+}
+/* Vide une position dans tempValidMove */
 void resetPosition(int position) {
-    // Reset a specific move entry to INVALID (meaning: unused / invalid)
     tempValidMove[position].x = INVALID;
     tempValidMove[position].y = INVALID;
     tempValidMove[position].occupied = INVALID;
     tempValidMove[position].valid = INVALID;
 }
 
+/* Réinitialisation complète */
 void resetAll(void) {
-    // Reset all stored moves
     for (int i = 0; i < 52; i++) {
         resetPosition(i);
     }
 }
 
-int pawnOrNot(int x,int y){
-    // Returns 1 if the square contains *any* piece, 0 if empty
-    if (board[x][y] != ' ') {
-        return 1;
-    }
-    return 0;
-}
+/*
+    Enregistre un mouvement dans tempValidMove
+    position = index
+    color    = camp (0 noir, 1 blanc)
 
-/* Store the movement pointed by tempLock into tempValidMove */
-int legalMove(int position) {
-
-    // Store coordinates
+    Retour :
+        1 si une pièce bloque la suite des déplacements (tour/fou/reine)
+        0 sinon
+*/
+int legalMove(int position, int color) {
     tempValidMove[position].x = tempLock[0];
     tempValidMove[position].y = tempLock[1];
 
-    // Check if a piece is present on the target square
-    if (pawnOrNot(tempLock[0], tempLock[1])) {
+    int status = isSomoneHere(tempLock[0], tempLock[1], color);
 
-        // Uppercase = white piece
-        if (isupper(board[tempLock[0]][tempLock[1]])) {
-            tempValidMove[position].occupied = 1;
-            tempValidMove[position].valid = 1;   // capturing allowed
-        }
-        // Lowercase = black piece
-        else if (islower(board[tempLock[0]][tempLock[1]])) {
-            tempValidMove[position].occupied = 1;
-            tempValidMove[position].valid = 0;   // blocked by ally
-        }
+    switch(status) {
+        case 0: // vide
+            tempValidMove[position].occupied = 0;
+            tempValidMove[position].valid = 1;
+            break;
 
-    } else {
-        // Empty square = valid move
-        tempValidMove[position].occupied = 0;
-        tempValidMove[position].valid = 1;
+        case 1: // allié => mouvement invalide
+            tempValidMove[position].occupied = 1;
+            tempValidMove[position].valid = 0;
+            return 1;
+
+        case 2: // ennemi => capture
+            tempValidMove[position].occupied = 1;
+            tempValidMove[position].valid = 1;
+            return 1;
     }
 
-    return 1;
+    return 0;
 }
 
-/* Movement helper functions:
-   They update tempLock with the new coordinates.
+/* ---- MOUVEMENTS ----
+   x = colonne
+   y = ligne
+   Les lignes augmentent vers le BAS
 */
 
-void forward(int x, int y, int step) {
-    tempLock[0] = x;
-    tempLock[1] = y + step;
+/* Vers le haut */
+void forward(int x,int y,int s) {
+    tempLock[0]=x;
+    tempLock[1]=y-s;
+}
+/* Vers le bas */
+void backward(int x,int y,int s) {
+    tempLock[0]=x;
+    tempLock[1]=y+s;
+}
+/* Gauche */
+void left(int x,int y,int s) {
+    tempLock[0]=x-s;
+    tempLock[1]=y;
+}
+/* Droite */
+void right(int x,int y,int s) {
+    tempLock[0]=x+s;
+    tempLock[1]=y;
 }
 
-void backward(int x, int y, int step) {
-    tempLock[0] = x;
-    tempLock[1] = y - step;
+void diagonalLeftTop(int x,int y,int s) {
+    tempLock[0]=x-s;
+    tempLock[1]=y-s;
+}
+void diagonalRightTop(int x,int y,int s) {
+    tempLock[0]=x+s;
+    tempLock[1]=y-s;
+}
+void diagonalRightBottom(int x,int y,int s) {
+    tempLock[0]=x+s;
+    tempLock[1]=y+s;
+}
+void diagonalLeftBottom(int x,int y,int s) {
+    tempLock[0]=x-s;
+    tempLock[1]=y+s;
 }
 
-void left(int x, int y, int step) {
-    tempLock[0] = x - step;
-    tempLock[1] = y;
-}
+/* ----- PIECES ----- */
 
-void right(int x, int y, int step) {
-    tempLock[0] = x + step;
-    tempLock[1] = y;
-}
-
-void diagonalLeftTop(int x, int y, int step) {
-    tempLock[0] = x - step;
-    tempLock[1] = y + step;
-}
-
-void diagonalRightTop(int x, int y, int step) {
-    tempLock[0] = x + step;
-    tempLock[1] = y + step;
-}
-
-void diagonalRightBottom(int x, int y, int step) {
-    tempLock[0] = x + step;
-    tempLock[1] = y - step;
-}
-
-void diagonalLeftBottom(int x, int y, int step) {
-    tempLock[0] = x - step;
-    tempLock[1] = y - step;
-}
-
-/* Pawns */
-
-void blackPawn(int x, int y) {
-
-    // Black pawns move downward (backward)
-    backward(x, y, 1);
-
-    // Store forward movement
-    tempValidMove[0].x = tempLock[0];
-    tempValidMove[0].y = tempLock[1];
-
-    // Check if forward square is free or blocked
-    if (pawnOrNot(tempLock[0], tempLock[1])) {
-        tempValidMove[0].occupied = 1;
-        tempValidMove[0].valid = 0;    // can't move forward if occupied
-    }
-    else {
-        tempValidMove[0].occupied = 0;
-        tempValidMove[0].valid = 1;
+void blackPawn(int x,int y,int color) {
+    backward(x,y,1);
+    if (isSomoneHereBlack(tempLock[0],tempLock[1]) == 0) { 
+        legalMove(0,color);
     }
 
-    // Capture left
-    diagonalLeftBottom(x, y, 1);
-    legalMove(1);
-
-    // Capture right
-    diagonalRightBottom(x, y, 1);
-    legalMove(2);
-}
-
-void whitePawn(int x, int y) {
-
-    // White pawns move upward (forward)
-    forward(x, y, 1);
-
-    // Store forward movement
-    tempValidMove[0].x = tempLock[0];
-    tempValidMove[0].y = tempLock[1];
-
-    // Check forward availability
-    if (pawnOrNot(tempLock[0], tempLock[1])) {
-        tempValidMove[0].occupied = 1;
-        tempValidMove[0].valid = 0;
-    }
-    else {
-        tempValidMove[0].occupied = 0;
-        tempValidMove[0].valid = 1;
+    diagonalLeftBottom(x,y,1);
+    if (isSomoneHereBlack(tempLock[0],tempLock[1]) == 2) {
+        legalMove(1,color);
     }
 
-    // Capture left
-    diagonalLeftTop(x, y, 1);
-    legalMove(1);
-
-    // Capture right
-    diagonalRightTop(x, y, 1);
-    legalMove(2);
-}
-
-/* Knights */
-
-void blackAndWhiteKnight(int x, int y) {
-    /* A knight has 8 possible movements */
-
-    forward(x, y, 2);
-    left(x, y, 1);
-    legalMove(0);
-    
-    forward(x, y, 2);
-    right(x, y, 1);
-    legalMove(1);
-
-    backward(x, y, 2);
-    left(x, y, 1);
-    legalMove(2);
-
-    backward(x, y, 2);
-    right(x, y, 1);
-    legalMove(3);
-
-    right(x, y, 2);
-    backward(x, y, 1);
-    legalMove(4);
-
-    right(x, y, 2);
-    forward(x, y, 1);
-    legalMove(5);
-
-    left(x, y, 2);
-    backward(x, y, 1);
-    legalMove(6);
-
-    left(x, y, 2);
-    forward(x, y, 1);
-    legalMove(7);
-}
-
-/* Bishops */
-
-void blackAndWhiteBishop(int x, int y) {
-    int pos = -1;
-
-    // A bishop moves diagonally up to 7 squares
-    for (int i = 1; i <= 7; i++) {
-        diagonalLeftBottom(x, y, i);
-        legalMove(++pos);
-
-        diagonalLeftTop(x, y, i);
-        legalMove(++pos);
-        
-        diagonalRightBottom(x, y, i);
-        legalMove(++pos);
-        
-        diagonalRightTop(x, y, i);
-        legalMove(++pos);
+    diagonalRightBottom(x,y,1);
+    if (isSomoneHereBlack(tempLock[0],tempLock[1]) == 2) {
+        legalMove(2,color);
     }
 }
 
-/* Rooks */
+void whitePawn(int x,int y,int color) {
+    forward(x,y,1);
+    if (isSomoneHereWhite(tempLock[0],tempLock[1]) == 0) {
+        legalMove(0,color);
+    }
 
-void blackAndWhiteRook(int x, int y) {
-    int pos = -1;
+    diagonalLeftTop(x,y,1);
+    if (isSomoneHereWhite(tempLock[0],tempLock[1]) == 2) {
+        legalMove(1,color);
+    }
 
-    // A rook moves horizontally and vertically up to 7 squares
-    for (int i = 1; i <= 7; i++) {
-        forward(x, y, i);
-        legalMove(++pos);
-
-        backward(x, y, i);
-        legalMove(++pos);
-
-        right(x, y, i);
-        legalMove(++pos);
-
-        left(x, y, i);
-        legalMove(++pos);
+    diagonalRightTop(x,y,1);
+    if (isSomoneHereWhite(tempLock[0],tempLock[1]) == 2) {
+        legalMove(2,color);
     }
 }
 
-/* Queens */
+void blackAndWhiteKnight(int x,int y,int color){
+    int pos=0;
+    forward(x,y,2);
+    left(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
 
-void blackAndWhiteQueen(int x, int y) {
-    int pos = -1;
+    forward(x,y,2);
+    right(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
 
-    // A queen combines rook + bishop movement
-    for (int i = 1; i <= 7; i++) {
+    backward(x,y,2);
+    left(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
 
-        /* Diagonals */
-        diagonalLeftBottom(x, y, i);
-        legalMove(++pos);
-        
-        diagonalLeftTop(x, y, i);
-        legalMove(++pos);
-        
-        diagonalRightBottom(x, y, i);
-        legalMove(++pos);
-        
-        diagonalRightTop(x, y, i);
-        legalMove(++pos);
+    backward(x,y,2);
+    right(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
 
-        /* Straight lines */
-        forward(x, y, i);
-        legalMove(++pos);
-        
-        backward(x, y, i);
-        legalMove(++pos);
-        
-        right(x, y, i);
-        legalMove(++pos);
-        
-        left(x, y, i);
-        legalMove(++pos);
+    right(x,y,2);
+    forward(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
+
+    right(x,y,2);
+    backward(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
+
+    left(x,y,2);
+    forward(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
+
+    left(x,y,2);
+    backward(tempLock[0],tempLock[1],1);
+    legalMove(pos++,color);
+}
+
+void blackAndWhiteBishop(int x,int y,int color){
+    int pos=0;
+    int stop[4]={0};
+    for(int i=1;i<=7;i++){
+        if(!stop[0]) {
+            diagonalLeftTop(x,y,i); 
+            stop[0]=legalMove(pos++,color); 
+        }
+        if(!stop[1]) { 
+            diagonalRightTop(x,y,i); 
+            stop[1]=legalMove(pos++,color); 
+        }
+        if(!stop[2]) { 
+            diagonalRightBottom(x,y,i); 
+            stop[2]=legalMove(pos++,color); 
+        }
+        if(!stop[3]) { 
+            diagonalLeftBottom(x,y,i); 
+            stop[3]=legalMove(pos++,color); 
+        }
     }
 }
 
-/* Kings */
-
-void blackAndWhiteKing(int x, int y) {
-    int pos = 0;
-
-    // King moves 1 square in any direction
-    diagonalLeftBottom(x, y, 1);
-    legalMove(pos++);
-    
-    diagonalLeftTop(x, y, 1);
-    legalMove(pos++);
-    
-    diagonalRightBottom(x, y, 1);
-    legalMove(pos++);
-    
-    diagonalRightTop(x, y, 1);
-    legalMove(pos++);
-
-    forward(x, y, 1);
-    legalMove(pos++);
-    
-    backward(x, y, 1);
-    legalMove(pos++);
-    
-    right(x, y, 1);
-    legalMove(pos++);
-    
-    left(x, y, 1);
-    legalMove(pos++);
+void blackAndWhiteRook(int x,int y,int color){
+    int pos=0;
+    int stop[4]={0};
+    for(int i=1;i<=7;i++){
+        if(!stop[0]) { 
+            forward(x,y,i); 
+            stop[0]=legalMove(pos++,color); 
+        }
+        if(!stop[1]) { 
+            backward(x,y,i); 
+            stop[1]=legalMove(pos++,color); 
+        }
+        if(!stop[2]) { 
+            right(x,y,i); 
+            stop[2]=legalMove(pos++,color); 
+        }
+        if(!stop[3]) { 
+            left(x,y,i); 
+            stop[3]=legalMove(pos++,color); 
+        }
+    }
 }
 
-/* Discard moves outside 0–7 board limits */
+void blackAndWhiteQueen(int x,int y,int color){
+    int pos=0;
+    int stop[8]={0};
+    for(int i=1;i<=7;i++){
+        if(!stop[0]) { 
+            diagonalLeftTop(x,y,i); 
+            stop[0]=legalMove(pos++,color); 
+        }
+        if(!stop[1]) { 
+            diagonalRightTop(x,y,i); 
+            stop[1]=legalMove(pos++,color); 
+        }
+        if(!stop[2]) { 
+            diagonalRightBottom(x,y,i); 
+            stop[2]=legalMove(pos++,color); 
+        }
+        if(!stop[3]) { 
+            diagonalLeftBottom(x,y,i); 
+            stop[3]=legalMove(pos++,color); 
+        }
+        if(!stop[4]) { 
+            forward(x,y,i); 
+            stop[4]=legalMove(pos++,color); 
+        }
+        if(!stop[5]) { 
+            backward(x,y,i); 
+            stop[5]=legalMove(pos++,color); 
+        }
+        if(!stop[6]) { 
+            right(x,y,i); 
+            stop[6]=legalMove(pos++,color); 
+        }
+        if(!stop[7]) { 
+            left(x,y,i); 
+            stop[7]=legalMove(pos++,color); 
+        }
+    }
+}
 
-void isInTheMatrix(void) {
-    for (int i = 0; i < 52; i++) {
-        // Remove move if outside chessboard limits
-        if (tempValidMove[i].x < 0 || tempValidMove[i].y < 0 ||
-            tempValidMove[i].x > 7 || tempValidMove[i].y > 7) {
+void blackAndWhiteKing(int x,int y,int color){
+    int pos=0;
+    diagonalLeftTop(x,y,1); 
+    legalMove(pos++,color);
+
+    diagonalRightTop(x,y,1); 
+    legalMove(pos++,color);
+
+    diagonalRightBottom(x,y,1); 
+    legalMove(pos++,color);
+
+    diagonalLeftBottom(x,y,1); 
+    legalMove(pos++,color);
+
+    forward(x,y,1); 
+    legalMove(pos++,color);
+
+    backward(x,y,1); 
+    legalMove(pos++,color);
+
+    right(x,y,1); 
+    legalMove(pos++,color);
+
+    left(x,y,1); 
+    legalMove(pos++,color);
+}
+
+/*
+    Supprime les mouvements hors plateau
+*/
+void isInTheMatrix(void){
+    for(int i=0;i<52;i++) {
+        int x=tempValidMove[i].x;
+        int y=tempValidMove[i].y;
+        if(x<0||x>7||y<0||y>7){
             resetPosition(i);
         }
     }
 }
 
-/* Check if (x,y) matches any stored valid coordinate */
-
-int isIn(int x, int y) {
-    for (int i = 0; i < 52; i++) {
-        if (x == tempValidMove[i].x && y == tempValidMove[i].y) {
-            return i;   // return index if found
+/*
+    Cherche si (x,y) correspond à un mouvement stocké
+*/
+int isIn(int x,int y){
+    for(int i=0;i<52;i++) {
+        if(tempValidMove[i].x==x && tempValidMove[i].y==y) {
+            return i;
         }
     }
     return -1;
 }
 
-int action(int x, int y) {
-    // Determine what kind of action happens on square (x,y)
-
-    int position = isIn(x, y);
-
-    if (position != -1) {
-        if (tempValidMove[position].valid) {
-            if (tempValidMove[position].occupied)
-                return 2; // capture move
-            return 1;     // normal move
-        }
-
-        else if (tempValidMove[position].occupied)
-            return 3; // blocked by own piece
-
-        return 0;       // invalid move
+/*
+    Action sur la case :
+    2 capture
+    1 normal
+    3 bloqué par allié
+    0 invalide
+    -1 pas dans la liste
+*/
+int action(int x,int y){
+    int pos=isIn(x,y);
+    if(pos==-1) {
+        return -1;
     }
 
-    return -1;          // not part of possible moves
+    if(tempValidMove[pos].valid){
+        if(tempValidMove[pos].occupied) { 
+            return 2;
+        }
+        return 1;
+    }
+    if(tempValidMove[pos].occupied) {
+        return 3;
+    }
+    return 0;
 }
 
-/* Public functions: calculate moves for each piece */
-
-int pawn(int x, int y) {
+/*
+    Fonctions publiques
+*/
+void pawn(int x,int y,int color){
     resetAll();
-    if (isupper(board[x][y])) {
-        whitePawn(x, y);
+    if(color==1) {
+        whitePawn(x,y,color);
     }
     else {
-        blackPawn(x, y);
+        blackPawn(x,y,color);
     }
     isInTheMatrix();
-    return action(x, y);
+    markPossibleMoves();
+    printBoard();
 }
 
-int knight(int x, int y) {
-    resetAll();
-    blackAndWhiteKnight(x, y);
-    isInTheMatrix();
-    return action(x, y);
+void knight(int x,int y,int color){
+    resetAll(); 
+    blackAndWhiteKnight(x,y,color);
+    isInTheMatrix(); 
+    markPossibleMoves();
+    printBoard();
 }
 
-int Bishop(int x, int y) {
-    resetAll();
-    blackAndWhiteBishop(x, y);
-    isInTheMatrix();
-    return action(x, y);
+void Bishop(int x,int y,int color){
+    resetAll(); 
+    blackAndWhiteBishop(x,y,color);
+    isInTheMatrix(); 
+    markPossibleMoves();
+    printBoard();
 }
 
-int Rook(int x, int y) {
-    resetAll();
-    blackAndWhiteRook(x, y);
-    isInTheMatrix();
-    return action(x, y);
+void Rook(int x,int y,int color){
+    resetAll(); 
+    blackAndWhiteRook(x,y,color);
+    isInTheMatrix(); 
+    markPossibleMoves();
+    printBoard();
 }
 
-int Queen(int x, int y) {
-    resetAll();
-    blackAndWhiteQueen(x, y);
-    isInTheMatrix();
-    return action(x, y);
+void Queen(int x,int y,int color){
+    resetAll(); 
+    blackAndWhiteQueen(x,y,color);
+    isInTheMatrix(); 
+    markPossibleMoves();
+    printBoard();
 }
 
-int King(int x, int y) {
-    resetAll();
-    blackAndWhiteKing(x, y);
-    isInTheMatrix();
-    return action(x, y);
+void King(int x,int y,int color){
+    resetAll(); 
+    blackAndWhiteKing(x,y,color);
+    isInTheMatrix(); 
+    markPossibleMoves();
+    printBoard();
+}
+
+void BlackPiece(int x,int y,int color) {
+    char pieces = board [y][x];
+    switch (pieces)
+    {
+    case 'p':
+        pawn(x,y,color);
+        break;
+    case 'q':
+        Queen(x,y,color);
+        break;
+    case 'r':
+        Rook(x,y,color);
+        break;
+    case 'b':
+        Bishop(x,y,color);
+        break;
+    case 'n':
+        knight(x,y,color);
+        break;
+    case 'k':
+        King(x,y,color);
+        break;
+    default:
+        error();
+        break;
+    }
+}
+
+void whitePiece(int x,int y,int color) {
+        char pieces = board [y][x];
+    switch (pieces)
+    {
+    case 'P':
+        pawn(x,y,color);
+        break;
+    case 'Q':
+        Queen(x,y,color);
+        break;
+    case 'R':
+        Rook(x,y,color);
+        break;
+    case 'B':
+        Bishop(x,y,color);
+        break;
+    case 'N':
+        knight(x,y,color);
+        break;
+    case 'K':
+        King(x,y,color);
+        break;
+    default:
+        error();
+        break;
+    }
+}
+
+
+void pieces(int x,int y,int color) {
+    if (!color) {
+        BlackPiece(x,y,color);
+    }
+    if (color) {
+        whitePiece(x,y,color);
+    }
 }

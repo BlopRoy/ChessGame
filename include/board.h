@@ -5,4 +5,6 @@ void printBoard();
 
 extern char board[8][8];
 
+void userInteraction(int color);
+
 #endif
