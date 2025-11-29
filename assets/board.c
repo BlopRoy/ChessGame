@@ -19,7 +19,7 @@ char board[8][8] = {
 void piecesMove(int color,int pos[2]) {
     int x = pos[0];
     int y = pos[1];
-
+ 
     switch (color)
     {
     case 0:

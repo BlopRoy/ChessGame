@@ -179,7 +179,7 @@ void blackPawn(int x, int y) {
     diagonalRightBottom(x, y, 1);
     legalMove(2, color);
 }
-
+ 
 void whitePawn(int x, int y) {
 
     forward(x, y, 1);
