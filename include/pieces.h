@@ -18,4 +18,6 @@ void pieces(int x,int y,int color);
 /* color=0 noir, 1 blanc */
 int isSomoneHere(int x,int y,int color);
 
+void resetPossibleMove(void);
+
 #endif

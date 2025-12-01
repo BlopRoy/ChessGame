@@ -6,7 +6,6 @@
 
 #define INVALID -1
 
-
 int tempLock[2] = {0, 0}; // (x,y)
 
 typedef struct {
