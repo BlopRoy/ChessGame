@@ -31,6 +31,22 @@ char possibleMove[8][8] = {
 void error(void) {
     printf("error");
 }
+//return 1 if the piece chose is blocked 0 if she can move
+int canWeMove(void) {
+    for (int i = 0; i < 7; i++)
+    {
+        for (int j = 0; j < 7; j++)
+        {
+            if (possibleMove[i][j] != ' ')
+            {
+                return 0;
+            }
+            
+        }
+        
+    }
+    return 1;
+}
 
 void resetPossibleMove(void) {
     for (int y = 0; y < 8; y++) {
@@ -444,7 +460,6 @@ void pawn(int x,int y,int color){
     }
     isInTheMatrix();
     markPossibleMoves();
-    printBoard();
 }
 
 void knight(int x,int y,int color){
@@ -452,7 +467,6 @@ void knight(int x,int y,int color){
     blackAndWhiteKnight(x,y,color);
     isInTheMatrix(); 
     markPossibleMoves();
-    printBoard();
 }
 
 void Bishop(int x,int y,int color){
@@ -460,7 +474,6 @@ void Bishop(int x,int y,int color){
     blackAndWhiteBishop(x,y,color);
     isInTheMatrix(); 
     markPossibleMoves();
-    printBoard();
 }
 
 void Rook(int x,int y,int color){
@@ -468,7 +481,6 @@ void Rook(int x,int y,int color){
     blackAndWhiteRook(x,y,color);
     isInTheMatrix(); 
     markPossibleMoves();
-    printBoard();
 }
 
 void Queen(int x,int y,int color){
@@ -476,7 +488,6 @@ void Queen(int x,int y,int color){
     blackAndWhiteQueen(x,y,color);
     isInTheMatrix(); 
     markPossibleMoves();
-    printBoard();
 }
 
 void King(int x,int y,int color){
@@ -484,7 +495,6 @@ void King(int x,int y,int color){
     blackAndWhiteKing(x,y,color);
     isInTheMatrix(); 
     markPossibleMoves();
-    printBoard();
 }
 
 void BlackPiece(int x,int y,int color) {

@@ -13,6 +13,8 @@ extern char possibleMove[8][8];
 */
 int action(int x,int y);
 
+int canWeMove(void);
+
 void pieces(int x,int y,int color);
 
 /* color=0 noir, 1 blanc */
