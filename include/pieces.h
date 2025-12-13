@@ -22,4 +22,9 @@ int isSomoneHere(int x,int y,int color);
 
 void resetPossibleMove(void);
 
+void resetAll(void);
+
+// Check if a square (x,y) is a valid move for the last piece that called pieces()
+int isValidMove(int x, int y);
+
 #endif

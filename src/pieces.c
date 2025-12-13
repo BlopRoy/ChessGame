@@ -33,9 +33,9 @@ void error(void) {
 }
 //return 1 if the piece chose is blocked 0 if she can move
 int canWeMove(void) {
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < 8; i++)
     {
-        for (int j = 0; j < 7; j++)
+        for (int j = 0; j < 8; j++)
         {
             if (possibleMove[i][j] != ' ')
             {
@@ -132,6 +132,17 @@ void resetAll(void) {
     for (int i = 0; i < 52; i++) {
         resetPosition(i);
     }
+}
+
+// Check if a square (x,y) is a valid move for the last piece that called pieces()
+int isValidMove(int x, int y) {
+    for (int i = 0; i < 52; i++) {
+        if (tempValidMove[i].x == x && tempValidMove[i].y == y && 
+            tempValidMove[i].valid) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /*
